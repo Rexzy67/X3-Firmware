@@ -39,8 +39,8 @@
 
   <script>
     // Replace with your GitHub details
-    const USERNAME = 'YOUR_GITHUB_USERNAME';
-    const REPO = 'YOUR_REPOSITORY_NAME';
+    const USERNAME = 'rexzy67';
+    const REPO = 'X3-Firmware';
 
     async function loadRepoFiles() {
       const listElement = document.getElementById('file-list');
@@ -70,7 +70,7 @@
           listElement.appendChild(li);
         });
       } catch (error) {
-        listElement.innerHTML = `<li style="color: red;">Error: ${error.message}. Check your username and repo name.</li>`;
+        listElement.innerHTML = `<li style="color: red;">Error: ${error.message}. Check back later. Theres probably an issue with the API request. Or the Site is being updated.</li>`;
       }
     }
 
