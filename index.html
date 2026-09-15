@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>X3-Firmware Repository</title>
+  
+  <!-- Marked.js for Markdown parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- DOMPurify to sanitize rendered Markdown HTML -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+
   <style>
     :root {
       --bg-color: #0d1117;
@@ -13,22 +19,40 @@
       --text-muted: #8b949e;
       --link-color: #58a6ff;
       --hover-bg: #21262d;
+      --icon-color: #7d8590;
+      --folder-icon: #54a3ff;
     }
+
+    * { box-sizing: border-box; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-main);
-      max-width: 900px;
+      max-width: 960px;
       margin: 2rem auto;
       padding: 0 1rem;
+      line-height: 1.5;
     }
 
-    h1 {
-      font-size: 1.5rem;
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
       border-bottom: 1px solid var(--border-color);
-      padding-bottom: 0.75rem;
-      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .header h1 { font-size: 1.25rem; margin: 0; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+    .header h1 a { color: var(--link-color); text-decoration: none; }
+    .header h1 a:hover { text-decoration: underline; }
+
+    .header-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--text-muted);
+      flex-shrink: 0;
     }
 
     .breadcrumb {
@@ -39,16 +63,15 @@
       margin-bottom: 1rem;
       font-size: 0.9rem;
       color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
     }
 
-    .breadcrumb span {
-      color: var(--link-color);
-      cursor: pointer;
-    }
-
-    .breadcrumb span:hover {
-      text-decoration: underline;
-    }
+    .breadcrumb-item { color: var(--link-color); cursor: pointer; font-weight: 500; }
+    .breadcrumb-item:hover { text-decoration: underline; }
+    .breadcrumb-separator { color: var(--text-muted); }
 
     ul.file-list {
       list-style: none;
@@ -64,109 +87,241 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.75rem 1rem;
+      padding: 0.65rem 1rem;
       border-bottom: 1px solid var(--border-color);
+      transition: background-color 0.15s ease;
     }
 
-    li.file-item:last-child {
-      border-bottom: none;
-    }
-
-    li.file-item:hover {
-      background-color: var(--hover-bg);
-    }
+    li.file-item:last-child { border-bottom: none; }
+    li.file-item:hover { background-color: var(--hover-bg); }
 
     .item-info {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.75rem;
       cursor: pointer;
+      flex-grow: 1;
     }
 
-    .icon {
-      font-size: 1.1rem;
+    .svg-icon {
+      width: 18px;
+      height: 18px;
+      fill: var(--icon-color);
+      flex-shrink: 0;
     }
+
+    .svg-icon.folder { fill: var(--folder-icon); }
 
     a.item-name, span.item-name {
-      color: var(--link-color);
+      color: var(--text-main);
       text-decoration: none;
-      font-weight: 500;
+      font-size: 0.9rem;
     }
 
-    a.item-name:hover, span.item-name:hover {
+    .item-info:hover .item-name {
+      color: var(--link-color);
       text-decoration: underline;
     }
 
+    .item-meta { font-size: 0.8rem; color: var(--text-muted); }
+
     .error-msg {
       padding: 1.5rem;
-      background: #271010;
-      border: 1px solid #6e1a1a;
+      background: rgba(248, 81, 73, 0.1);
+      border: 1px solid rgba(248, 81, 73, 0.4);
       border-radius: 6px;
-      color: #ff7b72;
+      color: #f85149;
       font-weight: 500;
       text-align: center;
     }
 
-    .back-btn {
-      color: var(--text-muted) !important;
-      font-weight: bold;
+    /* Markdown Viewer Container */
+    .md-container {
+      display: none;
+      margin-top: 1.5rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
     }
+
+    .md-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      background: var(--hover-bg);
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .md-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .md-close-btn:hover { background: var(--border-color); color: var(--text-main); }
+
+    .md-body {
+      padding: 2rem;
+      color: var(--text-main);
+      overflow-x: auto;
+    }
+
+    /* GitHub Standard Typography & Elements */
+    .md-body h1, .md-body h2, .md-body h3 { border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; margin-top: 1.5em; }
+    .md-body h1:first-child { margin-top: 0; }
+    .md-body a { color: var(--link-color); }
+    .md-body code { background: rgba(110, 118, 129, 0.4); padding: 0.2em 0.4em; border-radius: 6px; font-size: 85%; }
+    .md-body pre { background: var(--bg-color); padding: 1rem; border-radius: 6px; overflow-x: auto; }
+    .md-body pre code { background: transparent; padding: 0; }
+    .md-body blockquote { border-left: 0.25em solid var(--border-color); color: var(--text-muted); padding: 0 1em; margin: 1em 0; }
+    .md-body table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    .md-body th, .md-body td { border: 1px solid var(--border-color); padding: 6px 13px; }
+    .md-body tr:nth-child(2n) { background-color: var(--hover-bg); }
+
+    /* GitHub Markdown Callouts / Alerts */
+    .markdown-alert {
+      padding: 0.5rem 1rem;
+      margin-bottom: 1rem;
+      border-left: 0.25em solid;
+      border-radius: 0 6px 6px 0;
+      background-color: rgba(22, 27, 34, 0.5);
+    }
+
+    .markdown-alert-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .markdown-alert-title svg { width: 16px; height: 16px; fill: currentColor; }
+
+    .markdown-alert-note { border-left-color: #2f81f7; }
+    .markdown-alert-note .markdown-alert-title { color: #2f81f7; }
+
+    .markdown-alert-tip { border-left-color: #3fb950; }
+    .markdown-alert-tip .markdown-alert-title { color: #3fb950; }
+
+    .markdown-alert-important { border-left-color: #a371f7; }
+    .markdown-alert-important .markdown-alert-title { color: #a371f7; }
+
+    .markdown-alert-warning { border-left-color: #d29922; }
+    .markdown-alert-warning .markdown-alert-title { color: #d29922; }
+
+    .markdown-alert-caution { border-left-color: #f85149; }
+    .markdown-alert-caution .markdown-alert-title { color: #f85149; }
   </style>
 </head>
 <body>
 
-  <h1>rexzy67 / X3-Firmware</h1>
+  <div class="header">
+    <svg class="header-icon" viewBox="0 0 16 16">
+      <path d="M2 2.5A1.5 1.5 0 0 1 3.5 1h9A1.5 1.5 0 0 1 14 2.5v11a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 13.5v-11zM3.5 2a.5.5 0 0 0-.5.5v11a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-11a.5.5 0 0 0-.5-.5h-9z"></path>
+    </svg>
+    <h1><a href="#">rexzy67</a> / <strong>X3-Firmware</strong></h1>
+  </div>
   
   <div class="breadcrumb" id="breadcrumb">Path: root</div>
 
   <ul class="file-list" id="file-list">
-    <li class="file-item">Loading files...</li>
+    <li class="file-item">Loading directory files...</li>
   </ul>
+
+  <!-- Markdown Viewer Panel -->
+  <div class="md-container" id="md-container">
+    <div class="md-header">
+      <span id="md-filename">README.md</span>
+      <button class="md-close-btn" onclick="closeMarkdown()">✕</button>
+    </div>
+    <div class="md-body" id="md-content"></div>
+  </div>
 
   <script>
     const USERNAME = 'rexzy67';
     const REPO = 'X3-Firmware';
     let currentPath = '';
 
+    const SVG_FOLDER = `<svg class="svg-icon folder" viewBox="0 0 16 16"><path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75z"></path></svg>`;
+    const SVG_FILE = `<svg class="svg-icon" viewBox="0 0 16 16"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l3.414 3.414c.329.328.513.773.513 1.237v8.086A1.75 1.75 0 0 1 12.75 15H3.75A1.75 1.75 0 0 1 2 13.25V1.75zM3.75 1.5a.25.25 0 0 0-.25.25v11.5c0 .138.112.25.25.25h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 8.5 4.25V1.5H3.75z"></path></svg>`;
+    const SVG_MD_FILE = `<svg class="svg-icon" viewBox="0 0 16 16"><path d="M14.85 3H1.15C.52 3 0 3.52 0 4.15v7.7C0 12.48.52 13 1.15 13h13.7c.63 0 1.15-.52 1.15-1.15v-7.7C16 3.52 15.48 3 14.85 3zM9 11.5H7.5V7.7L6 9.2 4.5 7.7v3.8H3V4.5h1.5L6 6.25l1.5-1.75H9v7zm4-3.25h-1.5V11.5h-1.5V8.25H8.5V6.75h4.5v1.5z"></path></svg>`;
+
+    const alertTypes = {
+      NOTE: { title: 'Note', icon: '<path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>' },
+      TIP: { title: 'Tip', icon: '<path d="M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.898.307.52.379.97.379 1.545v.5h3.5v-.5c0-.575.072-1.025.379-1.545.203-.342.45-.634.673-.898l.214-.253c.56-.679.984-1.32.984-2.304 0-2.06-1.637-3.75-4-3.75ZM5.5 12h5v1.25a.75.75 0 0 1-.75.75h-3.5a.75.75 0 0 1-.75-.75V12Z"/>' },
+      IMPORTANT: { title: 'Important', icon: '<path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v9.5A1.75 1.75 0 0 1 14.25 13H11l-3 3-3-3H1.75A1.75 1.75 0 0 1 0 11.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.5c0 .138.112.25.25.25h3.627l2.623 2.622 2.623-2.622h3.627a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25ZM8 3.5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 3.5Zm0 7a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>' },
+      WARNING: { title: 'Warning', icon: '<path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/>' },
+      CAUTION: { title: 'Caution', icon: '<path d="M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>' }
+    };
+
+    // Configure Marked options
+    marked.setOptions({
+      gfm: true,
+      breaks: true
+    });
+
+    // Custom Tokenizer/Renderer extension for GitHub Alert blockquotes
+    marked.use({
+      hooks: {
+        postprocess(html) {
+          // Process rendered HTML blockquotes into GitHub alerts directly
+          const alertRegex = /<blockquote>\s*<p>\[\!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*([\s\S]*?)<\/blockquote>/gi;
+          return html.replace(alertRegex, (match, type, content) => {
+            const upperType = type.toUpperCase();
+            const alert = alertTypes[upperType];
+            return `
+              <div class="markdown-alert markdown-alert-${upperType.toLowerCase()}">
+                <div class="markdown-alert-title">
+                  <svg viewBox="0 0 16 16">${alert.icon}</svg>
+                  ${alert.title}
+                </div>
+                ${content.startsWith('<p>') ? content : `<p>${content}`}
+              </div>
+            `;
+          });
+        }
+      }
+    });
+
     async function fetchDirectory(path = '') {
       const listElement = document.getElementById('file-list');
-      const breadcrumbElement = document.getElementById('breadcrumb');
-      
       try {
         const url = `https://api.github.com/repos/${USERNAME}/${REPO}/contents/${path}`;
         const response = await fetch(url);
-        
-        if (!response.ok) {
-          throw new Error('API Request failed');
-        }
+        if (!response.ok) throw new Error('API Request failed');
 
         const files = await response.json();
         currentPath = path;
 
-        // Update Breadcrumb UI
         updateBreadcrumb(path);
-
         listElement.innerHTML = '';
 
-        // Add "Go Back" item if inside a subfolder
         if (path !== '') {
           const parentPath = path.substring(0, path.lastIndexOf('/'));
           const backLi = document.createElement('li');
           backLi.className = 'file-item';
           backLi.innerHTML = `
             <div class="item-info" onclick="fetchDirectory('${parentPath}')">
-              <span class="icon">📁</span>
-              <span class="item-name back-btn">.. (Go Back)</span>
+              ${SVG_FOLDER}
+              <span class="item-name" style="color: var(--text-muted); font-weight: 600;">.. (Go Back)</span>
             </div>
           `;
           listElement.appendChild(backLi);
         }
 
-        // Sort: Folders first, then Files
         files.sort((a, b) => (b.type === 'dir') - (a.type === 'dir'));
 
         files.forEach(file => {
-          if (file.name === 'index.html' && path === '') return; // Skip root index.html
+          if (file.name === 'index.html' && path === '') return;
 
           const li = document.createElement('li');
           li.className = 'file-item';
@@ -174,51 +329,103 @@
           if (file.type === 'dir') {
             li.innerHTML = `
               <div class="item-info" onclick="fetchDirectory('${file.path}')">
-                <span class="icon">📁</span>
+                ${SVG_FOLDER}
                 <span class="item-name">${file.name}</span>
               </div>
             `;
           } else {
-            // For raw files, open directly in a new tab
-            const rawUrl = `https://raw.githubusercontent.com/${USERNAME}/${REPO}/main/${file.path}`;
-            li.innerHTML = `
-              <div class="item-info">
-                <span class="icon">📄</span>
-                <a class="item-name" href="${rawUrl}" target="_blank" rel="noopener">${file.name}</a>
-              </div>
-            `;
+            const isMarkdown = file.name.endsWith('.md');
+            const icon = isMarkdown ? SVG_MD_FILE : SVG_FILE;
+            const rawUrl = file.download_url || `https://raw.githubusercontent.com/${USERNAME}/${REPO}/main/${file.path}`;
+            const sizeStr = formatBytes(file.size);
+
+            if (isMarkdown) {
+              li.innerHTML = `
+                <div class="item-info" onclick="renderMarkdown('${rawUrl}', '${file.name}')">
+                  ${icon}
+                  <span class="item-name">${file.name}</span>
+                </div>
+                <span class="item-meta">${sizeStr}</span>
+              `;
+            } else {
+              li.innerHTML = `
+                <div class="item-info">
+                  ${icon}
+                  <a class="item-name" href="${rawUrl}" target="_blank" rel="noopener">${file.name}</a>
+                </div>
+                <span class="item-meta">${sizeStr}</span>
+              `;
+            }
           }
 
           listElement.appendChild(li);
         });
 
       } catch (error) {
-        listElement.innerHTML = `
-          <div class="error-msg">
-            Check back later. Theres probably an issue with the API request. Or the Site is being updated.
-          </div>
-        `;
+        listElement.innerHTML = `<div class="error-msg">Unable to load directory files. Check API limits or network status.</div>`;
       }
+    }
+
+    async function renderMarkdown(rawUrl, fileName) {
+      const mdContainer = document.getElementById('md-container');
+      const mdContent = document.getElementById('md-content');
+      const mdFilename = document.getElementById('md-filename');
+
+      mdFilename.textContent = fileName;
+      mdContent.innerHTML = 'Loading content...';
+      mdContainer.style.display = 'block';
+      mdContainer.scrollIntoView({ behavior: 'smooth' });
+
+      try {
+        const response = await fetch(rawUrl);
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        
+        const markdownText = await response.text();
+        const parsedHtml = marked.parse(markdownText);
+        
+        // Preserve alert structural tags & icons
+        const sanitized = DOMPurify.sanitize(parsedHtml, {
+          ADD_TAGS: ['svg', 'path'],
+          ADD_ATTR: ['viewBox', 'class']
+        });
+
+        mdContent.innerHTML = sanitized;
+      } catch (err) {
+        console.error(err);
+        mdContent.innerHTML = `<div class="error-msg">Error rendering ${fileName}: ${err.message}</div>`;
+      }
+    }
+
+    function closeMarkdown() {
+      document.getElementById('md-container').style.display = 'none';
     }
 
     function updateBreadcrumb(path) {
       const breadcrumbElement = document.getElementById('breadcrumb');
       if (!path) {
-        breadcrumbElement.innerHTML = '<strong>Path:</strong> root';
+        breadcrumbElement.innerHTML = '<strong>Path:</strong> <span class="breadcrumb-item" onclick="fetchDirectory(\'\')">root</span>';
         return;
       }
 
       const parts = path.split('/');
       let accumulatedPath = '';
-      let html = '<strong>Path:</strong> <span onclick="fetchDirectory(\'\')">root</span>';
+      let html = '<strong>Path:</strong> <span class="breadcrumb-item" onclick="fetchDirectory(\'\')">root</span>';
 
-      parts.forEach((part, index) => {
-        accumulatedPath += (index === 0 ? '' : '/') + part;
+      parts.forEach((part) => {
+        accumulatedPath += (accumulatedPath ? '/' : '') + part;
         const targetPath = accumulatedPath;
-        html += ` / <span onclick="fetchDirectory('${targetPath}')">${part}</span>`;
+        html += ` <span class="breadcrumb-separator">/</span> <span class="breadcrumb-item" onclick="fetchDirectory('${targetPath}')">${part}</span>`;
       });
 
       breadcrumbElement.innerHTML = html;
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     }
 
     // Initial Load
